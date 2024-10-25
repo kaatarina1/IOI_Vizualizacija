@@ -29,6 +29,10 @@ let minX = 1; // minimalna latituda po projeciranju
 let maxY = -1; // maksimalna longituda po projeciranju
 let minY = 1; // minimalna longituda po projeciranju
 
+let originalMaxX = -1; // maksimalna latituda pred projeciranjem
+let originalMinX = 1; // minimalna latituda pred projeciranjem
+let originalMaxY = -1; // maksimalna longituda pred projeciranjem
+let originalMinY = 1; // minimalna longituda pred projeciranjem
 // Meje v katarih naj se zemljevid prikazuje
 let mapX1, mapY1, mapX2, mapY3;
 
@@ -225,6 +229,10 @@ function preprocessing() {
 		table.getRow(row).setString("currColor", pointsColor);
 		table.getRow(row).setString("newColor", pointsColor);
 	}
+	originalMaxX = maxX;
+	originalMaxY = maxY;
+	originalMinX = minX;
+	originalMinY = minY;
 }
 
 function drawPost(x, y, newColor, index) {
@@ -272,6 +280,9 @@ function keyPressed() {
 			textType.style("color", highlightedColor);
 			findPost(key);
 		}
+		if (zoomActive === 1) {
+			targetScale = scaleFactor + 0.1 * typeCount;
+		}
 	} else if (key === "Backspace" || key === "Delete") {
 		if (typeCount > 0) {
 			popup.hide();
@@ -282,12 +293,21 @@ function keyPressed() {
 			if (typeCount === 0) {
 				textType.html("Type the digits of a zip code");
 				textType.style("color", unhighlightedColor);
-				// resetColor();
+				if (zoomActive === 1) {
+					targetScale = 1;
+					maxX = originalMaxX;
+					minX = originalMinX;
+					maxY = originalMaxY;
+					minY = originalMinY;
+				}
 			} else {
 				if (typeCount === 3) {
 					clearLayer = true;
 				}
 				findPost(newText);
+				if (zoomActive === 1) {
+					targetScale = scaleFactor - 0.1 * typeCount;
+				}
 			}
 		}
 	} else if (key === "z" || key === "Z") {
@@ -297,6 +317,20 @@ function keyPressed() {
 		} else if (zoomActive === 1) {
 			zoomActive = 0;
 			textZoom.style("color", unhighlightedColor);
+			targetScale = 1;
+			maxX = originalMaxX;
+			minX = originalMinX;
+			maxY = originalMaxY;
+			minY = originalMinY;
+
+			mapX1 = 60;
+			mapX2 = width - mapX1;
+			mapY1 = 50;
+			mapY2 = height - mapY1;
+
+			clear();
+			layer1.clear();
+			scale(scaleFactor);
 		}
 	}
 }
@@ -315,15 +349,26 @@ function findPost(searchValue) {
 	// Gremo čez vse vrstice
 	let anyMatches = 0;
 	let match = -1;
+	let newMinX = 1;
+	let newMaxX = -1;
+	let newMinY = 1;
+	let newMaxY = -1;
 	for (let r = 0; r < table.getRowCount(); r++) {
 		let postalCode = table.getString(r, "postalCode"); // Pridobimo vrednost poštne številke za trenutno vrstico
-
+		let lat = table.getNum(r, "latitude");
+		let lon = table.getNum(r, "longitude");
 		// Preverimo ali se začne s searchValue
 		if (postalCode.startsWith(searchValue)) {
 			anyMatches = 1;
 			table.setString(r, "newColor", highlightedColor);
 			if (searchValue.length === 4) {
 				match = r;
+			}
+			if (zoomActive === 1) {
+				if (lat > newMaxX) newMaxX = lat;
+				if (lat < newMinX) newMinX = lat;
+				if (lon > newMaxY) newMaxY = lon;
+				if (lon < newMinY) newMinY = lon;
 			}
 		} else {
 			table.setString(r, "newColor", unhighlightedColor);
@@ -335,6 +380,18 @@ function findPost(searchValue) {
 		textType.style("color", highlightedColor);
 	}
 	colorPosts(match);
+	if (zoomActive === 1) {
+		// izračunamo sredino med mejnimi vrednostmi
+		maxX = newMaxX;
+		minX = newMinX;
+		maxY = newMaxY;
+		minY = newMinY;
+
+		mapX1 = 60;
+		mapX2 = width - mapX1;
+		mapY1 = 50;
+		mapY2 = height - mapY1;
+	}
 }
 
 function resetColor() {
@@ -384,10 +441,22 @@ function mousePressed() {
 	}
 }
 
+let scaleFactor = 1;
+let targetScale = 1;
 function draw() {
 	background(backgroundColor); // Draw the switch button
 
-	if (typeCount === 0 && zoomActive === 0) {
+	if (zoomActive === 1) {
+		textZoom.style("color", highlightedColor);
+
+		scaleFactor = lerp(scaleFactor, targetScale, 0.1);
+
+		clear();
+		layer1.clear();
+		scale(scaleFactor);
+	}
+
+	if (typeCount === 0) {
 		resetColor();
 	} else {
 		colorPosts(-1);
