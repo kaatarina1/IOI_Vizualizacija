@@ -7,6 +7,9 @@ let typeCount = 0; // koliko znakov je uporabnik napisla
 let zoomActive = 0;
 let specialPosts = 0;
 
+let switchButton;
+let switchActive = false;
+
 // Parametri za LCC (Lambert Conformal Conic) projekcijo (spodnje vrednosti so specifične za Slovenijo)
 let phi1 = 45.5; //radians(46); - Standardni vzporednik 1 (približno 46°N)
 let phi2 = 46.5; //radians(47); - Standardni vzporednik 2 (približno 47°N)
@@ -67,18 +70,20 @@ function preload() {
 }
 
 function setup() {
-	canvas = createCanvas(920, 653);
+	let canvasWidth = (3 * 920) / 4;
+	let canvasHeight = (3 * 653) / 4;
+	canvas = createCanvas(canvasWidth, canvasHeight);
 
-	layer1 = createGraphics(920, 653);
-	layer2 = createGraphics(920, 653);
-	layer3 = createGraphics(920, 653);
+	layer1 = createGraphics(canvasWidth, canvasHeight);
+	layer2 = createGraphics(canvasWidth, canvasHeight);
+	layer3 = createGraphics(canvasWidth, canvasHeight);
 
 	centerCanvas();
 	createText();
 
-	mapX1 = 60;
+	mapX1 = 10;
 	mapX2 = width - mapX1;
-	mapY1 = 50;
+	mapY1 = 10;
 	mapY2 = height - mapY1;
 
 	// parametre za LCC pretvorimo v radiane
@@ -99,13 +104,12 @@ function setup() {
 
 	// izrišemo piko za vsako pošto v Sloveniji
 	background(backgroundColor);
-	colorPosts(-1);
+	colorPosts(false);
 
 	createPopUp();
 	// Set the position of the switch
 	switchX = canvas.x - 60;
 	switchY = canvas.y + 33;
-	console.log(switchX, switchY);
 	// Set initial toggle position (left for "off")
 	togglePos = switchX + switchHeight / 2;
 	targetPos = togglePos; // Initially, target is the same as current position
@@ -122,7 +126,7 @@ function createPopUp() {
 	popup.hide(); // Na začetku je skrit
 }
 
-function colorPosts(match) {
+function colorPosts(less) {
 	for (let i = 0; i < table.getRowCount(); i++) {
 		let x = table.getNum(i, "latitude");
 		let y = table.getNum(i, "longitude");
@@ -130,7 +134,7 @@ function colorPosts(match) {
 		if (match !== -1 && match === i) {
 			drawChoosen(x, y, newColor, i);
 		} else {
-			drawPost(x, y, newColor, i);
+			drawPost(x, y, newColor, i, less && newColor === highlightedColor);
 		}
 	}
 }
@@ -147,7 +151,7 @@ function drawChoosen(x, y, newColor, index) {
 	layer2.stroke(newColor);
 	layer2.strokeWeight(4);
 	table.setString(index, "currColor", newColor);
-	layer2.rect(xx - 2.5, yy - 2.5, 3, 3);
+	layer2.rect(xx, yy, 3, 3);
 	popup.html(place + ", " + postalCode);
 	popup.show();
 	let relativeX = xx + canvas.x - popup.html().length * 5;
@@ -165,30 +169,47 @@ function createText() {
 	textZoom = createP("zoom");
 	textType = createP("Type the digits of a zip code");
 	textSpecila = createP("Show special posts");
+	switchButton = createCheckbox("", switchActive);
 
 	textZoom.style("font-family", "monospace");
 	textType.style("font-family", "monospace");
 	textSpecila.style("font-family", "monospace");
 
-	textZoom.style("font-size", "25px");
-	textType.style("font-size", "20px");
-	textSpecila.style("font-size", "20px");
+	textZoom.style("font-size", "18px");
+	textType.style("font-size", "18px");
+	textSpecila.style("font-size", "18px");
 
 	textZoom.style("color", unhighlightedColor);
 	textType.style("color", unhighlightedColor);
 	textSpecila.style("color", unhighlightedColor);
 
+	switchButton.style("border-radius", "5px");
+	switchButton.style("border", "1px solid " + unhighlightedColor);
+
 	positionText();
 }
 
 function positionText() {
-	textType.position(canvas.x + 30, canvas.y);
+	textType.position(canvas.x - 30, canvas.y - 30);
 
-	textSpecila.position(canvas.x + 30, canvas.y + 30);
-	textZoom.position(canvas.x + width - 80, canvas.y + height - 70);
+	textSpecila.position(canvas.x - 30, canvas.y - 5);
+	textZoom.position(canvas.x + width - 70, canvas.y + height - 30);
 
 	textZoom.mousePressed(handleClick);
 	textZoom.style("cursor", "pointer");
+
+	switchButton.position(canvas.x + 150, canvas.y + 16); // Set the position relative to the canvas
+	switchButton.addClass("switch"); // Add a class for custom styling
+
+	// Toggle the variable on checkbox change
+	switchButton.changed(() => {
+		textSpecila.style(
+			"color",
+			switchButton.checked() ? highlightedColor : unhighlightedColor
+		);
+		isSwitchedOn = switchButton.checked();
+		console.log("Switch state:", isSwitchedOn);
+	});
 }
 
 function projectionLCC(lat, lon) {
@@ -235,19 +256,31 @@ function preprocessing() {
 	originalMinY = minY;
 }
 
-function drawPost(x, y, newColor, index) {
+function drawPost(x, y, newColor, index, less) {
 	let xx = mapX(x);
 	let yy = mapY(y);
 	let currColor = table.getString(index, "currColor");
+	let postalCode = table.getString(index, "postalCode");
+	let lastDigit = postalCode.charAt(postalCode.length - 1);
 	let blendColor = lerpColor(color(currColor), color(newColor), 0.1);
 	layer1.stroke(blendColor);
-	layer1.strokeWeight(2);
-	layer1.point(xx, yy);
+	if (less) {
+		layer1.noStroke();
+		layer1.fill(blendColor);
+		// Draw the index as text when less is true
+		layer1.textSize(8); // Set an appropriate text size
+		layer1.text(lastDigit, xx, yy);
+	} else {
+		// Draw a point when less is false
+		layer1.strokeWeight(2);
+		layer1.point(xx, yy);
+	}
 	table.setString(index, "currColor", blendColor);
 }
 
 function mapX(x) {
 	return map(x, minX, maxX, mapX1, mapX2);
+	// how to get x in original coordinates if we know x in projected coordinates
 }
 
 function mapY(y) {
@@ -274,14 +307,13 @@ function keyPressed() {
 			typeCount++;
 			textType.html(newText);
 			findPost(newText);
+			updateCorrdinates(0, 0.1);
 		} else if (typeCount === 0) {
 			textType.html(key);
 			typeCount++;
 			textType.style("color", highlightedColor);
 			findPost(key);
-		}
-		if (zoomActive === 1) {
-			targetScale = scaleFactor + 0.1 * typeCount;
+			updateCorrdinates(1, 0.1);
 		}
 	} else if (key === "Backspace" || key === "Delete") {
 		if (typeCount > 0) {
@@ -293,20 +325,15 @@ function keyPressed() {
 			if (typeCount === 0) {
 				textType.html("Type the digits of a zip code");
 				textType.style("color", unhighlightedColor);
-				if (zoomActive === 1) {
-					targetScale = 1;
-					maxX = originalMaxX;
-					minX = originalMinX;
-					maxY = originalMaxY;
-					minY = originalMinY;
-				}
+				updateCorrdinates(1, -0.1);
 			} else {
 				if (typeCount === 3) {
 					clearLayer = true;
 				}
+				let anyMatchesPrev = anyMatches;
 				findPost(newText);
-				if (zoomActive === 1) {
-					targetScale = scaleFactor - 0.1 * typeCount;
+				if (typeCount < 3 && anyMatchesPrev > 0) {
+					updateCorrdinates(0, -0.1);
 				}
 			}
 		}
@@ -314,24 +341,46 @@ function keyPressed() {
 		if (zoomActive === 0) {
 			zoomActive = 1;
 			textZoom.style("color", highlightedColor);
+			updateCorrdinates(0, 0.1);
 		} else if (zoomActive === 1) {
 			zoomActive = 0;
 			textZoom.style("color", unhighlightedColor);
+			updateCorrdinates(0, 0.0);
+			clearLayer = true;
+		}
+	}
+}
+
+function updateCorrdinates(reset, factor) {
+	if (zoomActive === 1) {
+		if (typeCount === 0) {
 			targetScale = 1;
+
 			maxX = originalMaxX;
 			minX = originalMinX;
 			maxY = originalMaxY;
 			minY = originalMinY;
+		} else {
+			if (typeCount !== 4 && anyMatches > 0) {
+				midX = mapX((maxX + minX) / 2);
+				midY = mapY((maxY + minY) / 2);
 
-			mapX1 = 60;
-			mapX2 = width - mapX1;
-			mapY1 = 50;
-			mapY2 = height - mapY1;
-
-			clear();
-			layer1.clear();
-			scale(scaleFactor);
+				maxX = newMaxX;
+				minX = newMinX;
+				maxY = newMaxY;
+				minY = newMinY;
+				targetScale = scaleFactor + factor * typeCount;
+				targetX = mapX((maxX + minX) / 2);
+				targetY = mapY((maxY + minY) / 2);
+			}
 		}
+	} else {
+		targetScale = 1;
+
+		maxX = originalMaxX;
+		minX = originalMinX;
+		maxY = originalMaxY;
+		minY = originalMinY;
 	}
 }
 
@@ -345,30 +394,36 @@ function handleClick() {
 	}
 }
 
+let newMinX = 1;
+let newMaxX = -1;
+let newMinY = 1;
+let newMaxY = -1;
+let anyMatches = 0;
+let match = -1;
 function findPost(searchValue) {
 	// Gremo čez vse vrstice
-	let anyMatches = 0;
-	let match = -1;
-	let newMinX = 1;
-	let newMaxX = -1;
-	let newMinY = 1;
-	let newMaxY = -1;
+	match = -1;
+	anyMatches = 0;
+
+	newMinX = 1;
+	newMaxX = -1;
+	newMinY = 1;
+	newMaxY = -1;
 	for (let r = 0; r < table.getRowCount(); r++) {
 		let postalCode = table.getString(r, "postalCode"); // Pridobimo vrednost poštne številke za trenutno vrstico
 		let lat = table.getNum(r, "latitude");
 		let lon = table.getNum(r, "longitude");
 		// Preverimo ali se začne s searchValue
 		if (postalCode.startsWith(searchValue)) {
-			anyMatches = 1;
+			anyMatches++;
 			table.setString(r, "newColor", highlightedColor);
+			if (lat > newMaxX) newMaxX = lat;
+			if (lat < newMinX) newMinX = lat;
+			if (lon > newMaxY) newMaxY = lon;
+			if (lon < newMinY) newMinY = lon;
+
 			if (searchValue.length === 4) {
 				match = r;
-			}
-			if (zoomActive === 1) {
-				if (lat > newMaxX) newMaxX = lat;
-				if (lat < newMinX) newMinX = lat;
-				if (lon > newMaxY) newMaxY = lon;
-				if (lon < newMinY) newMinY = lon;
 			}
 		} else {
 			table.setString(r, "newColor", unhighlightedColor);
@@ -378,19 +433,14 @@ function findPost(searchValue) {
 		textType.style("color", badSearchColor);
 	} else {
 		textType.style("color", highlightedColor);
-	}
-	colorPosts(match);
-	if (zoomActive === 1) {
-		// izračunamo sredino med mejnimi vrednostmi
-		maxX = newMaxX;
-		minX = newMinX;
-		maxY = newMaxY;
-		minY = newMinY;
-
-		mapX1 = 60;
-		mapX2 = width - mapX1;
-		mapY1 = 50;
-		mapY2 = height - mapY1;
+		let midX = (newMaxX + newMinX) / 2;
+		let midY = (newMaxY + newMinY) / 2;
+		let viewX = 0.01;
+		let viewY = 0.008;
+		newMinX = midX - viewX;
+		newMaxX = midX + viewX;
+		newMinY = midY - viewY;
+		newMaxY = midY + viewY;
 	}
 }
 
@@ -398,7 +448,7 @@ function resetColor() {
 	for (let r = 0; r < table.getRowCount(); r++) {
 		table.setString(r, "newColor", pointsColor);
 	}
-	colorPosts();
+	colorPosts(false);
 }
 
 function drawSwitch() {
@@ -443,30 +493,37 @@ function mousePressed() {
 
 let scaleFactor = 1;
 let targetScale = 1;
+let midX, midY;
+let targetX, targetY;
 function draw() {
-	background(backgroundColor); // Draw the switch button
+	background(backgroundColor);
 
 	if (zoomActive === 1) {
 		textZoom.style("color", highlightedColor);
-
-		scaleFactor = lerp(scaleFactor, targetScale, 0.1);
+		scaleFactor = lerp(scaleFactor, targetScale, 0.05);
+		midX = lerp(midX, targetX, 0.05);
+		midY = lerp(midY, targetY, 0.05);
 
 		clear();
 		layer1.clear();
+
+		translate(midX, midY);
 		scale(scaleFactor);
+
+		translate(-midX, -midY);
 	}
 
 	if (typeCount === 0) {
 		resetColor();
 	} else {
-		colorPosts(-1);
+		colorPosts(anyMatches < 10 && zoomActive === 1 && typeCount === 3);
 	}
 	image(layer1, 0, 0);
 
 	if (clearLayer) {
 		clear();
-		colorPosts(-1);
 		layer2.clear();
+		layer1.clear();
 		clearLayer = false;
 	}
 
@@ -474,7 +531,7 @@ function draw() {
 		image(layer2, 0, 0);
 	}
 	// izrišemo piko za vsako pošto v Sloveniji
-	drawSwitch();
+	//drawSwitch();
 	// Smoothly interpolate the toggle position
 	togglePos = lerp(togglePos, targetPos, 0.1); // The 0.1 controls how fast the toggle moves
 }
