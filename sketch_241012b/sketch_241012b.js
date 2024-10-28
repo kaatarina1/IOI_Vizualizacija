@@ -7,6 +7,7 @@ let typeCount = 0; // koliko znakov je uporabnik napisla
 let zoomActive = 0;
 let specialPosts = 0;
 
+// gumb, ki doloca ali bomo prikazali posebne poste
 let switchButton;
 let switchActive = false;
 
@@ -39,6 +40,14 @@ let originalMinY = 1; // minimalna longituda pred projeciranjem
 // Meje v katarih naj se zemljevid prikazuje
 let mapX1, mapY1, mapX2, mapY3;
 
+let newMinX = 1;
+let newMaxX = -1;
+let newMinY = 1;
+let newMaxY = -1;
+
+let anyMatches = 0;
+let match = -1;
+
 // določimo barve za različne scenarije
 const backgroundColor = "#212120";
 const pointsColor = "#FFD541";
@@ -47,40 +56,49 @@ const unhighlightedColor = "#4a4737";
 const badSearchColor = "#e6b502";
 const popupColor = "#fcf7e3";
 
+// pojavno okno, ki se prikaže ime pošte
 let popup;
 
+// spremenljivka, ki določa ali pobrišemo narisane točke
 let clearLayer = false;
 
-let switchState = false; // Initial state of the switch (off)
-let switchX, switchY; // Position of the switch
-let switchWidth = 45; // Width of the switch
-let switchHeight = 20; // Height of the switch
-let togglePos; // Current position of the toggle
-let targetPos; // Target position for the toggle
+// spremenljivka, ki določa x in y koordinate izbrane pošte
+let chosenX, chosenY;
 
 function preload() {
-	// preberemo podatke o poštah iz datoteke poste.csv [objectId, latitude, longitude, postalCode, place]
+	// preberemo podatke o poštah iz datoteke regular_post_offices_with_latlong.csv [postalCode, place, latitude, longitude]
 	poste = loadTable(
 		"data/regular_post_offices_with_latlong.csv",
 		"csv",
 		"header"
 	);
-	posebnePoste = loadTable("data/posebne_poste.csv", "csv", "header");
+	// preberemo podatke o posebnih poštah iz datoteke special_post_offices_with_latlong.csv [postalCode, place, latitude, longitude]
+	posebnePoste = loadTable(
+		"data/special_post_offices_with_latlong.csv",
+		"csv",
+		"header"
+	);
 	table = poste;
 }
 
 function setup() {
+	// nastaivimo velikost canvasa in ga ustvarimo
 	let canvasWidth = (3 * 920) / 4;
 	let canvasHeight = (3 * 653) / 4;
 	canvas = createCanvas(canvasWidth, canvasHeight);
 
+	// ustvarimo 3 plasti, ki jih bomo uporabili za risanje
 	layer1 = createGraphics(canvasWidth, canvasHeight);
 	layer2 = createGraphics(canvasWidth, canvasHeight);
 	layer3 = createGraphics(canvasWidth, canvasHeight);
 
+	// centriramo canvas
 	centerCanvas();
+
+	// ustvarimo besedilo na strani
 	createText();
 
+	// določimo meje zemljevida
 	mapX1 = 10;
 	mapX2 = width - mapX1;
 	mapY1 = 10;
@@ -102,17 +120,16 @@ function setup() {
 	// predprocesiranje podatkov
 	preprocessing();
 
-	// izrišemo piko za vsako pošto v Sloveniji
-	background(backgroundColor);
-	colorPosts(false);
-
+	// inicializiramo pojavnostno okno za prikaz imena pošte
 	createPopUp();
-	// Set the position of the switch
-	switchX = canvas.x - 60;
-	switchY = canvas.y + 33;
-	// Set initial toggle position (left for "off")
-	togglePos = switchX + switchHeight / 2;
-	targetPos = togglePos; // Initially, target is the same as current position
+}
+
+function mapX(x) {
+	return map(x, minX, maxX, mapX1, mapX2);
+}
+
+function mapY(y) {
+	return map(y, minY, maxY, mapY2, mapY1);
 }
 
 function createPopUp() {
@@ -126,90 +143,10 @@ function createPopUp() {
 	popup.hide(); // Na začetku je skrit
 }
 
-function colorPosts(less) {
-	for (let i = 0; i < table.getRowCount(); i++) {
-		let x = table.getNum(i, "latitude");
-		let y = table.getNum(i, "longitude");
-		let newColor = table.getString(i, "newColor");
-		if (match !== -1 && match === i) {
-			drawChoosen(x, y, newColor, i);
-		} else {
-			drawPost(x, y, newColor, i, less && newColor === highlightedColor);
-		}
-	}
-}
-
-let chosenX, chosenY;
-
-function drawChoosen(x, y, newColor, index) {
-	let postalCode = table.getString(index, "postalCode");
-	let place = table.getString(index, "place");
-	chosenX = x;
-	chosenY = y;
-	let xx = mapX(x);
-	let yy = mapY(y);
-	layer2.stroke(newColor);
-	layer2.strokeWeight(4);
-	table.setString(index, "currColor", newColor);
-	layer2.rect(xx, yy, 3, 3);
-	popup.html(place + ", " + postalCode);
-	popup.show();
-	let relativeX = xx + canvas.x - popup.html().length * 5;
-	let relativeY = yy + canvas.y - 30;
-	popup.position(relativeX, relativeY);
-}
-
 function centerCanvas() {
 	let centerX = (windowWidth - width) / 2;
 	let centerY = (windowHeight - height) / 2;
 	canvas.position(centerX, centerY);
-}
-
-function createText() {
-	textZoom = createP("zoom");
-	textType = createP("Type the digits of a zip code");
-	textSpecila = createP("Show special posts");
-	switchButton = createCheckbox("", switchActive);
-
-	textZoom.style("font-family", "monospace");
-	textType.style("font-family", "monospace");
-	textSpecila.style("font-family", "monospace");
-
-	textZoom.style("font-size", "18px");
-	textType.style("font-size", "18px");
-	textSpecila.style("font-size", "18px");
-
-	textZoom.style("color", unhighlightedColor);
-	textType.style("color", unhighlightedColor);
-	textSpecila.style("color", unhighlightedColor);
-
-	switchButton.style("border-radius", "5px");
-	switchButton.style("border", "1px solid " + unhighlightedColor);
-
-	positionText();
-}
-
-function positionText() {
-	textType.position(canvas.x - 30, canvas.y - 30);
-
-	textSpecila.position(canvas.x - 30, canvas.y - 5);
-	textZoom.position(canvas.x + width - 70, canvas.y + height - 30);
-
-	textZoom.mousePressed(handleClick);
-	textZoom.style("cursor", "pointer");
-
-	switchButton.position(canvas.x + 150, canvas.y + 16); // Set the position relative to the canvas
-	switchButton.addClass("switch"); // Add a class for custom styling
-
-	// Toggle the variable on checkbox change
-	switchButton.changed(() => {
-		textSpecila.style(
-			"color",
-			switchButton.checked() ? highlightedColor : unhighlightedColor
-		);
-		isSwitchedOn = switchButton.checked();
-		console.log("Switch state:", isSwitchedOn);
-	});
 }
 
 function projectionLCC(lat, lon) {
@@ -256,6 +193,89 @@ function preprocessing() {
 	originalMinY = minY;
 }
 
+function createText() {
+	textZoom = createP("zoom");
+	textType = createP("Type the digits of a zip code");
+	textSpecila = createP("Show special posts");
+	switchButton = createCheckbox("", switchActive);
+
+	textZoom.style("font-family", "monospace");
+	textType.style("font-family", "monospace");
+	textSpecila.style("font-family", "monospace");
+
+	textZoom.style("font-size", "18px");
+	textType.style("font-size", "18px");
+	textSpecila.style("font-size", "18px");
+
+	textZoom.style("color", unhighlightedColor);
+	textType.style("color", unhighlightedColor);
+	textSpecila.style("color", unhighlightedColor);
+
+	switchButton.style("border-radius", "5px");
+	switchButton.style("border", "1px solid " + unhighlightedColor);
+
+	positionText();
+}
+
+function positionText() {
+	textType.position(canvas.x - 30, canvas.y - 30);
+
+	textSpecila.position(canvas.x - 30, canvas.y - 5);
+	textZoom.position(canvas.x + width - 70, canvas.y + height - 30);
+
+	textZoom.mousePressed(handleClick);
+	textZoom.style("cursor", "pointer");
+
+	switchButton.position(canvas.x + 150, canvas.y + 16); // Set the position relative to the canvas
+	switchButton.addClass("switch"); // Add a class for custom styling
+
+	// Toggle the variable on checkbox change
+	switchButton.changed(() => {
+		textSpecila.style(
+			"color",
+			switchButton.checked() ? highlightedColor : unhighlightedColor
+		);
+		isSwitchedOn = switchButton.checked();
+
+		console.log("Switch state:", isSwitchedOn);
+	});
+}
+
+function colorPosts(less) {
+	// gremo čez vse pošte
+	for (let i = 0; i < table.getRowCount(); i++) {
+		// preberemo zemljepisno višino in širino za določeno po
+		let x = table.getNum(i, "latitude");
+		let y = table.getNum(i, "longitude");
+		// preberemo barvo, ki jo moramo uporabiti za to pošto
+		let newColor = table.getString(i, "newColor");
+		// preverimo ali je trenutna pošta izbrana
+		if (match !== -1 && match === i) {
+			drawChoosen(x, y, newColor, i);
+		} else {
+			drawPost(x, y, newColor, i, less && newColor === highlightedColor);
+		}
+	}
+}
+
+function drawChoosen(x, y, newColor, index) {
+	let postalCode = table.getString(index, "postalCode");
+	let place = table.getString(index, "place");
+	chosenX = x;
+	chosenY = y;
+	let xx = mapX(x);
+	let yy = mapY(y);
+	layer2.stroke(newColor);
+	layer2.strokeWeight(4);
+	table.setString(index, "currColor", newColor);
+	layer2.rect(xx, yy, 3, 3);
+	popup.html(place + ", " + postalCode);
+	popup.show();
+	let relativeX = xx + canvas.x - popup.html().length * 5;
+	let relativeY = yy + canvas.y - 30;
+	popup.position(relativeX, relativeY);
+}
+
 function drawPost(x, y, newColor, index, less) {
 	let xx = mapX(x);
 	let yy = mapY(y);
@@ -278,15 +298,6 @@ function drawPost(x, y, newColor, index, less) {
 	table.setString(index, "currColor", blendColor);
 }
 
-function mapX(x) {
-	return map(x, minX, maxX, mapX1, mapX2);
-	// how to get x in original coordinates if we know x in projected coordinates
-}
-
-function mapY(y) {
-	return map(y, minY, maxY, mapY2, mapY1);
-}
-
 function windowResized() {
 	centerCanvas();
 	positionText();
@@ -307,13 +318,13 @@ function keyPressed() {
 			typeCount++;
 			textType.html(newText);
 			findPost(newText);
-			updateCorrdinates(0, 0.1);
+			updateCorrdinates(0.1);
 		} else if (typeCount === 0) {
 			textType.html(key);
 			typeCount++;
 			textType.style("color", highlightedColor);
 			findPost(key);
-			updateCorrdinates(1, 0.1);
+			updateCorrdinates(0.1);
 		}
 	} else if (key === "Backspace" || key === "Delete") {
 		if (typeCount > 0) {
@@ -325,7 +336,7 @@ function keyPressed() {
 			if (typeCount === 0) {
 				textType.html("Type the digits of a zip code");
 				textType.style("color", unhighlightedColor);
-				updateCorrdinates(1, -0.1);
+				updateCorrdinates(-0.1);
 			} else {
 				if (typeCount === 3) {
 					clearLayer = true;
@@ -333,7 +344,7 @@ function keyPressed() {
 				let anyMatchesPrev = anyMatches;
 				findPost(newText);
 				if (typeCount < 3 && anyMatchesPrev > 0) {
-					updateCorrdinates(0, -0.1);
+					updateCorrdinates(-0.1);
 				}
 			}
 		}
@@ -341,17 +352,17 @@ function keyPressed() {
 		if (zoomActive === 0) {
 			zoomActive = 1;
 			textZoom.style("color", highlightedColor);
-			updateCorrdinates(0, 0.1);
+			updateCorrdinates(0.1);
 		} else if (zoomActive === 1) {
 			zoomActive = 0;
 			textZoom.style("color", unhighlightedColor);
-			updateCorrdinates(0, 0.0);
+			updateCorrdinates(0.0);
 			clearLayer = true;
 		}
 	}
 }
 
-function updateCorrdinates(reset, factor) {
+function updateCorrdinates(factor) {
 	if (zoomActive === 1) {
 		if (typeCount === 0) {
 			targetScale = 1;
@@ -394,12 +405,6 @@ function handleClick() {
 	}
 }
 
-let newMinX = 1;
-let newMaxX = -1;
-let newMinY = 1;
-let newMaxY = -1;
-let anyMatches = 0;
-let match = -1;
 function findPost(searchValue) {
 	// Gremo čez vse vrstice
 	match = -1;
@@ -451,46 +456,6 @@ function resetColor() {
 	colorPosts(false);
 }
 
-function drawSwitch() {
-	// Draw the background of the switch (base)
-	if (switchState) {
-		fill(unhighlightedColor); // Green for ON
-		textSpecila.style("color", highlightedColor);
-	} else {
-		fill(backgroundColor); // Red for OFF
-		textSpecila.style("color", unhighlightedColor);
-	}
-	stroke(unhighlightedColor);
-	rect(switchX, switchY, switchWidth, switchHeight, 20); // Rounded rectangle
-
-	// Draw the circle inside the switch (toggle)
-	fill(highlightedColor);
-	ellipse(togglePos, switchY + switchHeight / 2, switchHeight - 4); // Smoothly moving toggle
-}
-
-function mousePressed() {
-	// Check if the mouse click is inside the switch area
-	if (
-		mouseX > switchX &&
-		mouseX < switchX + switchWidth &&
-		mouseY > switchY &&
-		mouseY < switchY + switchHeight
-	) {
-		switchState = !switchState; // Toggle the switch state// Set the new target position for smooth transition
-		if (switchState) {
-			targetPos = switchX + switchWidth - switchHeight / 2; // Right position for ON
-			// set color of all posts to unhighlighted
-			// table = posebnePoste;
-			// preprocessing();
-		} else {
-			targetPos = switchX + switchHeight / 2; // Left position for OFF
-			// set color of all posts to unhighlighted
-			// table = poste;
-			// preprocessing();
-		}
-	}
-}
-
 let scaleFactor = 1;
 let targetScale = 1;
 let midX, midY;
@@ -530,8 +495,4 @@ function draw() {
 	if (typeCount === 4) {
 		image(layer2, 0, 0);
 	}
-	// izrišemo piko za vsako pošto v Sloveniji
-	//drawSwitch();
-	// Smoothly interpolate the toggle position
-	togglePos = lerp(togglePos, targetPos, 0.1); // The 0.1 controls how fast the toggle moves
 }
