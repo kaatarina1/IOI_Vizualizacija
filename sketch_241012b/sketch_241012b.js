@@ -40,6 +40,9 @@ let originalMinY = 1; // minimalna longituda pred projeciranjem
 // Meje v katarih naj se zemljevid prikazuje
 let mapX1, mapY1, mapX2, mapY3;
 
+// Tabela, ki hrani faktorje za povečavo
+let targetScaleTabel = [1, 1.2, 1.5, 1.9, 1.9];
+
 let newMinX = 1;
 let newMaxX = -1;
 let newMinY = 1;
@@ -51,7 +54,8 @@ let match = -1;
 // določimo barve za različne scenarije
 const backgroundColor = "#212120";
 const pointsColor = "#FFD541";
-const highlightedColor = "#f7e8b2";
+const highlightedColorText = "#f7e8b2";
+const highlightedColor = "#ffffff";
 const unhighlightedColor = "#4a4737";
 const badSearchColor = "#e6b502";
 const popupColor = "#fcf7e3";
@@ -233,7 +237,7 @@ function positionText() {
 	switchButton.changed(() => {
 		textSpecila.style(
 			"color",
-			switchButton.checked() ? highlightedColor : unhighlightedColor
+			switchButton.checked() ? highlightedColorText : unhighlightedColor
 		);
 		isSwitchedOn = switchButton.checked();
 
@@ -318,13 +322,13 @@ function keyPressed() {
 			typeCount++;
 			textType.html(newText);
 			findPost(newText);
-			updateCorrdinates(0.1);
+			updateCorrdinates();
 		} else if (typeCount === 0) {
 			textType.html(key);
 			typeCount++;
-			textType.style("color", highlightedColor);
+			textType.style("color", highlightedColorText);
 			findPost(key);
-			updateCorrdinates(0.1);
+			updateCorrdinates();
 		}
 	} else if (key === "Backspace" || key === "Delete") {
 		if (typeCount > 0) {
@@ -336,57 +340,54 @@ function keyPressed() {
 			if (typeCount === 0) {
 				textType.html("Type the digits of a zip code");
 				textType.style("color", unhighlightedColor);
-				updateCorrdinates(-0.1);
+				updateCorrdinates();
 			} else {
 				if (typeCount === 3) {
 					clearLayer = true;
 				}
 				let anyMatchesPrev = anyMatches;
 				findPost(newText);
-				if (typeCount < 3 && anyMatchesPrev > 0) {
-					updateCorrdinates(-0.1);
-				}
+				updateCorrdinates();
 			}
 		}
 	} else if (key === "z" || key === "Z") {
 		if (zoomActive === 0) {
 			zoomActive = 1;
-			textZoom.style("color", highlightedColor);
-			updateCorrdinates(0.1);
+			textZoom.style("color", highlightedColorText);
+			updateCorrdinates();
 		} else if (zoomActive === 1) {
 			zoomActive = 0;
 			textZoom.style("color", unhighlightedColor);
-			updateCorrdinates(0.0);
+			updateCorrdinates();
 			clearLayer = true;
 		}
 	}
 }
 
-function updateCorrdinates(factor) {
+function updateCorrdinates() {
 	if (zoomActive === 1) {
 		if (typeCount === 0) {
-			targetScale = 1;
+			targetScale = targetScaleTabel[0];
 
 			maxX = originalMaxX;
 			minX = originalMinX;
 			maxY = originalMaxY;
 			minY = originalMinY;
 		} else {
-			if (typeCount !== 4 && anyMatches > 0) {
+			if (anyMatches > 0) {
 				midX = mapX((maxX + minX) / 2);
 				midY = mapY((maxY + minY) / 2);
-
 				maxX = newMaxX;
 				minX = newMinX;
 				maxY = newMaxY;
 				minY = newMinY;
-				targetScale = scaleFactor + factor * typeCount;
+				targetScale = targetScaleTabel[typeCount];
 				targetX = mapX((maxX + minX) / 2);
 				targetY = mapY((maxY + minY) / 2);
 			}
 		}
 	} else {
-		targetScale = 1;
+		targetScale = targetScaleTabel[0];
 
 		maxX = originalMaxX;
 		minX = originalMinX;
@@ -398,10 +399,13 @@ function updateCorrdinates(factor) {
 function handleClick() {
 	if (zoomActive === 0) {
 		zoomActive = 1;
-		textZoom.style("color", highlightedColor);
+		textZoom.style("color", highlightedColorText);
+		updateCorrdinates(0.1);
 	} else if (zoomActive === 1) {
 		zoomActive = 0;
 		textZoom.style("color", unhighlightedColor);
+		updateCorrdinates(0.0);
+		clearLayer = true;
 	}
 }
 
@@ -437,7 +441,7 @@ function findPost(searchValue) {
 	if (anyMatches === 0) {
 		textType.style("color", badSearchColor);
 	} else {
-		textType.style("color", highlightedColor);
+		textType.style("color", highlightedColorText);
 		let midX = (newMaxX + newMinX) / 2;
 		let midY = (newMaxY + newMinY) / 2;
 		let viewX = 0.01;
@@ -464,13 +468,12 @@ function draw() {
 	background(backgroundColor);
 
 	if (zoomActive === 1) {
-		textZoom.style("color", highlightedColor);
-		scaleFactor = lerp(scaleFactor, targetScale, 0.05);
-		midX = lerp(midX, targetX, 0.05);
-		midY = lerp(midY, targetY, 0.05);
-
 		clear();
 		layer1.clear();
+
+		midX = lerp(midX, targetX, 0.000000001);
+		midY = lerp(midY, targetY, 0.000000001);
+		scaleFactor = lerp(scaleFactor, targetScale, 0.05);
 
 		translate(midX, midY);
 		scale(scaleFactor);
