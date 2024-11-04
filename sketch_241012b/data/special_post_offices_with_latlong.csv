@@ -1,25 +1,25 @@
-specialOffice,latitude,longitude,postal_code,post_name
-Merkur,46.24946715,15.28178133654001,3505,Celje
-"Pošta Slovenije d.o.o., PE Celje",46.2293889,15.2616828,3600,Celje
-Mimovrste d.o.o.,46.196794,14.551421,1508,Komenda
-Luka Koper,45.55713395,13.747319704838208,6501,Koper - Capodistria
-"Banka Intesa Sanpaolo, d.d.",45.545003,13.729373,6502,Koper - Capodistria
-Generali zavarovalnica d.d.,45.9415847,15.4882409,6503,Koper - Capodistria
-Intereuropa Koper,45.548165,13.737652,6504,Koper - Capodistria
-"Pošta Slovenije d.o.o., PE Koper",,,6600.0,Koper - Capodistria***********************************************************
-Sava,46.2463548,14.3484057,4502,Kranj
-"Pošta Slovenije d.o.o., PLC Ljubljana",46.0500268,14.5069289,1002,Ljubljana
-Ministrstvo za notranje zadeve,46.051681450000004,14.497382521082354,1501,Ljubljana
-Ministrstvo za finance,46.05329585,14.50042904742456,1502,Ljubljana
-Okrožno sodišče v Ljubljani,46.0500268,14.5069289,1503,Ljubljana
-Gospodarska zbornica Slovenije,46.0719821,14.514311141285008,1504,Ljubljana
-Banka Slovenije,46.0556282,14.5090425,1505,Ljubljana
-Slovenske železnice,46.0580003,14.5100424,1506,Ljubljana
-Zavod za zdrav. zav. Slov.,46.0500268,14.5069289,1507,Ljubljana
-Delo,46.05938285,14.505995424816295,1509,Ljubljana
-Dnevnik,46.051040799999996,14.510907591804433,1510,Ljubljana
-Slovenijales,46.0935135,14.5539316,1511,Ljubljana
-Cankarjeva založba,46.0500268,14.5069289,1512,Ljubljana
+specialOffice,latitude,longitude,postalCode,place
+Merkur,46.2400712,15.2839405,3505,Celje
+"Pošta Slovenije d.o.o., PE Celje",46.221392,15.3127059,3600,Celje
+Mimovrste d.o.o.,46.1898971,14.4990328,1508,Komenda
+Luka Koper,45.55431,13.7318155,6501,Koper - Capodistria
+"Banka Intesa Sanpaolo, d.d.",45.5440533,13.720854,6502,Koper - Capodistria
+Generali zavarovalnica d.d.,45.5417848,13.7298451,6503,Koper - Capodistria
+Intereuropa Koper,45.5417843,13.7221203,6504,Koper - Capodistria
+"Pošta Slovenije d.o.o., PE Koper",45.54017,13.7206243,6600,Koper - Capodistria
+Sava,46.2365019,14.343681,4502,Kranj
+"Pošta Slovenije d.o.o., PLC Ljubljana",46.033317,14.4786205,1002,Ljubljana
+Ministrstvo za notranje zadeve,46.0534822,14.5009832,1501,Ljubljana
+Ministrstvo za finance,46.0532936,14.4827596,1502,Ljubljana
+Okrožno sodišče v Ljubljani,46.0532927,14.4827596,1503,Ljubljana
+Gospodarska zbornica Slovenije,46.0715588,14.512208,1504,Ljubljana
+Banka Slovenije,46.0526878,14.5007848,1505,Ljubljana
+Slovenske železnice,46.056448,14.5068886,1506,Ljubljana
+Zavod za zdrav. zav. Slov.,46.0550717,14.5050516,1507,Ljubljana
+Delo,46.0698033,14.4805254,1509,Ljubljana
+Dnevnik,46.0510898,14.5083316,1510,Ljubljana
+Slovenijales,46.0961484,14.5123554,1511,Ljubljana
+Cankarjeva založba,46.0516186,14.4843945,1512,Ljubljana
 SKB banka,46.0823744,14.5140607,1513,Ljubljana
 Elektro Ljubljana,46.0500268,14.5069289,1516,Ljubljana
 Abanka Vipa,46.056105,14.509216,1517,Ljubljana

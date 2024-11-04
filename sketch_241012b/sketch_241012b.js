@@ -59,6 +59,7 @@ const highlightedColor = "#ffffff";
 const unhighlightedColor = "#4a4737";
 const badSearchColor = "#e6b502";
 const popupColor = "#fcf7e3";
+const grayedOutColor = "#363530";
 
 // pojavno okno, ki se prikaže ime pošte
 let popup;
@@ -68,6 +69,9 @@ let clearLayer = false;
 
 // spremenljivka, ki določa x in y koordinate izbrane pošte
 let chosenX, chosenY;
+
+// ali je priprava podatkov končana
+let dataReady = false;
 
 function preload() {
 	// preberemo podatke o poštah iz datoteke regular_post_offices_with_latlong.csv [postalCode, place, latitude, longitude]
@@ -82,7 +86,6 @@ function preload() {
 		"csv",
 		"header"
 	);
-	table = poste;
 }
 
 function setup() {
@@ -121,11 +124,50 @@ function setup() {
 	F = (cos(phi1) * pow(tan(PI / 4 + phi1 / 2), n)) / n;
 	rho0 = F / pow(tan(PI / 4 + phi0 / 2), n);
 
+	poste = setUpPreprocessing(poste);
+	posebnePoste = setUpPreprocessing(posebnePoste);
+	table = joinTables(poste, posebnePoste);
+	dataReady = true;
+
 	// predprocesiranje podatkov
 	preprocessing();
 
 	// inicializiramo pojavnostno okno za prikaz imena pošte
 	createPopUp();
+}
+
+// Function to join two tables
+function joinTables(tableA, tableB) {
+	let newTable = new p5.Table();
+
+	// Add columns
+	for (let c = 0; c < tableA.columns.length; c++) {
+		newTable.addColumn(tableA.columns[c]);
+	}
+
+	// Add rows from table A
+	for (let r = 0; r < tableA.getRowCount(); r++) {
+		let newRow = newTable.addRow();
+		for (let c = 0; c < tableA.columns.length; c++) {
+			newRow.set(
+				tableA.columns[c],
+				tableA.getString(r, tableA.columns[c])
+			);
+		}
+	}
+
+	// Add rows from table B
+	for (let r = 0; r < tableB.getRowCount(); r++) {
+		let newRow = newTable.addRow();
+		for (let c = 0; c < tableB.columns.length; c++) {
+			newRow.set(
+				tableB.columns[c],
+				tableB.getString(r, tableB.columns[c])
+			);
+		}
+	}
+
+	return newTable;
 }
 
 function mapX(x) {
@@ -163,60 +205,89 @@ function projectionLCC(lat, lon) {
 	return [x, y];
 }
 
-function preprocessing() {
+function setUpPreprocessing(t) {
 	// dodamo stolpec, ki bo predstavljal barvo te vrstice v danem trenutku
-	table.addColumn("newColor");
-	table.addColumn("currColor");
+	t.addColumn("newColor");
+	t.addColumn("currColor");
+	// projeciramo zemljepisno širino in višino za vsak zapis v tabeli
+	for (let row = 0; row < t.getRowCount(); row++) {
+		// preberemo zemljepisno višino in širino za določeno pošto
+		let lat = t.getNum(row, "latitude");
+		let lon = t.getNum(row, "longitude");
+		// projeciramo koordinate
+		let xy = projectionLCC(radians(lat), radians(lon));
+		// shranimo projecirane koordinate
+		t.setNum(row, "latitude", xy[0]);
+		t.setNum(row, "longitude", xy[1]);
+
+		let specialOffice = t.getString(row, "specialOffice") !== "";
+		if (specialOffice) {
+			t.setString(row, "newColor", pointsColor);
+			t.setString(row, "currColor", pointsColor);
+		} else {
+			t.setString(row, "newColor", "");
+			t.setString(row, "currColor", pointsColor);
+		}
+	}
+	return t;
+}
+
+function preprocessing() {
+	maxX = -1;
+	minX = 1;
+	maxY = -1;
+	minY = 1;
 	// projeciramo zemljepisno širino in višino za vsak zapis v tabeli
 	for (let row = 0; row < table.getRowCount(); row++) {
 		// preberemo zemljepisno višino in širino za določeno pošto
 		let lat = table.getNum(row, "latitude");
 		let lon = table.getNum(row, "longitude");
-		if (lat > 46.876 || lon > 16.888 || lat < 45.422 || lon < 13.375) {
-			let name = table.getString(row, "place");
-			let postalCode = table.getString(row, "postalCode");
-			console.log(name, postalCode, lat, lon);
-		}
-		// projeciramo koordinate
-		let xy = projectionLCC(radians(lat), radians(lon));
-		// shranimo projecirane koordinate
-		table.setNum(row, "latitude", xy[0]);
-		table.setNum(row, "longitude", xy[1]);
 		// preverimo ali imamo novo max ali min x ali y koordinato
-		if (xy[0] > maxX) maxX = xy[0];
-		if (xy[0] < minX) minX = xy[0];
-		if (xy[1] > maxY) maxY = xy[1];
-		if (xy[1] < minY) minY = xy[1];
-		// najprej vsaki vrstici barvo nastavimo na osnovno
-		table.getRow(row).setString("currColor", pointsColor);
-		table.getRow(row).setString("newColor", pointsColor);
+		if (lat > maxX) maxX = lat;
+		if (lat < minX) minX = lat;
+		if (lon > maxY) maxY = lon;
+		if (lon < minY) minY = lon;
+
+		let specialOffice = table.getString(row, "specialOffice");
+		if (switchActive && specialOffice !== "") {
+			// če je posebna pošta, ji dodelimo posebno barvo
+			table.setString(row, "newColor", pointsColor);
+		} else if (switchActive && specialOffice === "") {
+			// če ni posebna pošta, ji dodelimo osnovno barvo
+			table.setString(row, "newColor", grayedOutColor);
+		} else if (!switchActive && specialOffice !== "") {
+			// če je posebna pošta, ji dodelimo posebno barvo
+			table.setString(row, "newColor", "");
+		} else {
+			// najprej vsaki vrstici barvo nastavimo na osnovno
+			table.getRow(row).setString("newColor", pointsColor);
+		}
 	}
 	originalMaxX = maxX;
 	originalMaxY = maxY;
 	originalMinX = minX;
 	originalMinY = minY;
+	console.log(originalMaxX, originalMaxY, originalMinX, originalMinY);
 }
 
 function createText() {
 	textZoom = createP("zoom");
 	textType = createP("Type the digits of a zip code");
 	textSpecila = createP("Show special posts");
-	switchButton = createCheckbox("", switchActive);
+	switchButton = select("#mySwitch");
+	switchButton.mousePressed(toggleSwitch);
 
 	textZoom.style("font-family", "monospace");
 	textType.style("font-family", "monospace");
 	textSpecila.style("font-family", "monospace");
 
-	textZoom.style("font-size", "18px");
-	textType.style("font-size", "18px");
-	textSpecila.style("font-size", "18px");
+	textZoom.style("font-size", "20px");
+	textType.style("font-size", "20px");
+	textSpecila.style("font-size", "14px");
 
 	textZoom.style("color", unhighlightedColor);
 	textType.style("color", unhighlightedColor);
 	textSpecila.style("color", unhighlightedColor);
-
-	switchButton.style("border-radius", "5px");
-	switchButton.style("border", "1px solid " + unhighlightedColor);
 
 	positionText();
 }
@@ -224,13 +295,13 @@ function createText() {
 function positionText() {
 	textType.position(canvas.x - 30, canvas.y - 30);
 
-	textSpecila.position(canvas.x - 30, canvas.y - 5);
-	textZoom.position(canvas.x + width - 70, canvas.y + height - 30);
+	textSpecila.position(canvas.x + width - 150, canvas.y + height - 17);
+	textZoom.position(canvas.x + width - 25, canvas.y + height - 50);
 
 	textZoom.mousePressed(handleClick);
 	textZoom.style("cursor", "pointer");
 
-	switchButton.position(canvas.x + 150, canvas.y + 16); // Set the position relative to the canvas
+	switchButton.position(canvas.x + width - 5, canvas.y + height); // Set the position relative to the canvas
 	switchButton.addClass("switch"); // Add a class for custom styling
 
 	// Toggle the variable on checkbox change
@@ -254,10 +325,19 @@ function colorPosts(less) {
 		// preberemo barvo, ki jo moramo uporabiti za to pošto
 		let newColor = table.getString(i, "newColor");
 		// preverimo ali je trenutna pošta izbrana
-		if (match !== -1 && match === i) {
-			drawChoosen(x, y, newColor, i);
-		} else {
-			drawPost(x, y, newColor, i, less && newColor === highlightedColor);
+		let specialOffice = table.getString(i, "specialOffice") !== "";
+		if ((!specialOffice && !switchActive) || switchActive) {
+			if (match !== -1 && match === i) {
+				drawChoosen(x, y, newColor, i);
+			} else {
+				drawPost(
+					x,
+					y,
+					newColor,
+					i,
+					less && newColor === highlightedColor
+				);
+			}
 		}
 	}
 }
@@ -265,6 +345,7 @@ function colorPosts(less) {
 function drawChoosen(x, y, newColor, index) {
 	let postalCode = table.getString(index, "postalCode");
 	let place = table.getString(index, "place");
+	let specialOffice = table.getString(index, "specialOffice");
 	chosenX = x;
 	chosenY = y;
 	let xx = mapX(x);
@@ -273,7 +354,11 @@ function drawChoosen(x, y, newColor, index) {
 	layer2.strokeWeight(4);
 	table.setString(index, "currColor", newColor);
 	layer2.rect(xx, yy, 3, 3);
-	popup.html(place + ", " + postalCode);
+	if (specialOffice === "") {
+		popup.html(place + ", " + postalCode);
+	} else {
+		popup.html(specialOffice + "," + place + ", " + postalCode);
+	}
 	popup.show();
 	let relativeX = xx + canvas.x - popup.html().length * 5;
 	let relativeY = yy + canvas.y - 30;
@@ -340,12 +425,12 @@ function keyPressed() {
 			if (typeCount === 0) {
 				textType.html("Type the digits of a zip code");
 				textType.style("color", unhighlightedColor);
+				reset = true;
 				updateCorrdinates();
 			} else {
 				if (typeCount === 3) {
 					clearLayer = true;
 				}
-				let anyMatchesPrev = anyMatches;
 				findPost(newText);
 				updateCorrdinates();
 			}
@@ -409,6 +494,32 @@ function handleClick() {
 	}
 }
 
+let canDraw = true;
+function toggleSwitch() {
+	canDraw = false;
+	switchActive = !switchActive;
+	textSpecila.style(
+		"color",
+		switchActive ? highlightedColorText : unhighlightedColor
+	);
+
+	clear();
+	layer1.clear();
+	if (!switchActive) {
+		switchButton.removeClass("checked");
+	} else {
+		switchButton.addClass("checked");
+	}
+
+	setScale();
+	preprocessing();
+	if (typeCount > 0) {
+		findPost(textType.html());
+		updateCorrdinates();
+	}
+	canDraw = true;
+}
+
 function findPost(searchValue) {
 	// Gremo čez vse vrstice
 	match = -1;
@@ -423,7 +534,11 @@ function findPost(searchValue) {
 		let lat = table.getNum(r, "latitude");
 		let lon = table.getNum(r, "longitude");
 		// Preverimo ali se začne s searchValue
-		if (postalCode.startsWith(searchValue)) {
+		let isSpecial = table.getString(r, "specialOffice") !== "";
+		if (
+			postalCode.startsWith(searchValue) &&
+			((switchActive && isSpecial) || (!switchActive && !isSpecial))
+		) {
 			anyMatches++;
 			table.setString(r, "newColor", highlightedColor);
 			if (lat > newMaxX) newMaxX = lat;
@@ -455,17 +570,42 @@ function findPost(searchValue) {
 
 function resetColor() {
 	for (let r = 0; r < table.getRowCount(); r++) {
-		table.setString(r, "newColor", pointsColor);
+		if (switchActive) {
+			if (table.getString(r, "specialOffice") !== "") {
+				table.setString(r, "newColor", pointsColor);
+			} else {
+				table.setString(r, "newColor", grayedOutColor);
+			}
+		} else {
+			if (table.getString(r, "specialOffice") !== "") {
+				table.setString(r, "newColor", "");
+			} else {
+				table.setString(r, "newColor", pointsColor);
+			}
+		}
 	}
 	colorPosts(false);
+}
+
+function setScale() {
+	if (switchActive) {
+		targetScaleTabel = [1, 1.9, 2.5, 3.0, 3.0];
+	} else {
+		targetScaleTabel = [1, 1.2, 1.5, 1.9, 1.9];
+	}
 }
 
 let scaleFactor = 1;
 let targetScale = 1;
 let midX, midY;
 let targetX, targetY;
+let reset = true;
 function draw() {
 	background(backgroundColor);
+
+	if (!dataReady || !canDraw) {
+		return;
+	}
 
 	if (zoomActive === 1) {
 		clear();
@@ -481,8 +621,9 @@ function draw() {
 		translate(-midX, -midY);
 	}
 
-	if (typeCount === 0) {
+	if (reset && typeCount === 0) {
 		resetColor();
+		reset = false;
 	} else {
 		colorPosts(anyMatches < 10 && zoomActive === 1 && typeCount === 3);
 	}
