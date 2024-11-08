@@ -327,7 +327,11 @@ function positionText() {
 	});
 }
 
+let drawnPosts = [];
+let numberNear = 0;
 function colorPosts(less) {
+	drawnPosts = [];
+	numberNear = 0;
 	// gremo čez vse pošte
 	for (let i = 0; i < table.getRowCount(); i++) {
 		// preberemo zemljepisno višino in širino za določeno po
@@ -377,6 +381,7 @@ function drawChoosen(x, y, newColor, index) {
 	popup.position(relativeX, relativeY);
 }
 
+let offsetthreshold = 2;
 function drawPost(x, y, newColor, index, less) {
 	let xx = mapX(x);
 	let yy = mapY(y);
@@ -386,11 +391,30 @@ function drawPost(x, y, newColor, index, less) {
 	let blendColor = lerpColor(color(currColor), color(newColor), 0.1);
 	layer1.stroke(blendColor);
 	if (less) {
+		let offset = 10 * pow(-1, numberNear + 1);
+		// Check for overlap with existing positions
+		for (let pos of drawnPosts) {
+			let dX = abs(xx - pos.xx);
+			let dY = abs(yy - pos.yy);
+			if (dX < offsetthreshold) {
+				// Apply a small offset if too close
+				numberNear++;
+				xx += offset;
+				break; // Adjust once per overlap
+			} else if (dY < offsetthreshold) {
+				numberNear++;
+				yy += offset;
+				break;
+			}
+		}
+
 		layer1.noStroke();
 		layer1.fill(blendColor);
 		// Draw the index as text when less is true
 		layer1.textSize(10); // Set an appropriate text size
 		layer1.text(lastDigit, xx, yy);
+
+		drawnPosts.push({ xx, yy });
 	} else {
 		// Draw a point when less is false
 		layer1.strokeWeight(2);
