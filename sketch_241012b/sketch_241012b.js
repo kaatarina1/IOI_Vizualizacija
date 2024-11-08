@@ -33,15 +33,17 @@ let minX = 1; // minimalna latituda po projeciranju
 let maxY = -1; // maksimalna longituda po projeciranju
 let minY = 1; // minimalna longituda po projeciranju
 
+let targetMaxX = 0;
+let targetMinX = 0;
+let targetMaxY = 0;
+let targetMinY = 0;
+
 let originalMaxX = -1; // maksimalna latituda pred projeciranjem
 let originalMinX = 1; // minimalna latituda pred projeciranjem
 let originalMaxY = -1; // maksimalna longituda pred projeciranjem
 let originalMinY = 1; // minimalna longituda pred projeciranjem
 // Meje v katarih naj se zemljevid prikazuje
 let mapX1, mapY1, mapX2, mapY3;
-
-// Tabela, ki hrani faktorje za povečavo
-let targetScaleTabel = [1, 1.2, 1.5, 1.9, 1.9];
 
 let newMinX = 1;
 let newMaxX = -1;
@@ -127,10 +129,10 @@ function setup() {
 	poste = setUpPreprocessing(poste);
 	posebnePoste = setUpPreprocessing(posebnePoste);
 	table = joinTables(poste, posebnePoste);
-	dataReady = true;
 
 	// predprocesiranje podatkov
 	preprocessing();
+	dataReady = true;
 
 	// inicializiramo pojavnostno okno za prikaz imena pošte
 	createPopUp();
@@ -267,7 +269,16 @@ function preprocessing() {
 	originalMaxY = maxY;
 	originalMinX = minX;
 	originalMinY = minY;
-	console.log(originalMaxX, originalMaxY, originalMinX, originalMinY);
+
+	targetMaxX = maxX;
+	targetMaxY = maxY;
+	targetMinX = minX;
+	targetMinY = minY;
+
+	midX = mapX((maxX + minX) / 2);
+	midY = mapY((maxY + minY) / 2);
+	targetX = midX;
+	targetY = midY;
 }
 
 function createText() {
@@ -343,6 +354,7 @@ function colorPosts(less) {
 }
 
 function drawChoosen(x, y, newColor, index) {
+	layer2.clear();
 	let postalCode = table.getString(index, "postalCode");
 	let place = table.getString(index, "place");
 	let specialOffice = table.getString(index, "specialOffice");
@@ -377,7 +389,7 @@ function drawPost(x, y, newColor, index, less) {
 		layer1.noStroke();
 		layer1.fill(blendColor);
 		// Draw the index as text when less is true
-		layer1.textSize(8); // Set an appropriate text size
+		layer1.textSize(10); // Set an appropriate text size
 		layer1.text(lastDigit, xx, yy);
 	} else {
 		// Draw a point when less is false
@@ -452,32 +464,23 @@ function keyPressed() {
 function updateCorrdinates() {
 	if (zoomActive === 1) {
 		if (typeCount === 0) {
-			targetScale = targetScaleTabel[0];
-
-			maxX = originalMaxX;
-			minX = originalMinX;
-			maxY = originalMaxY;
-			minY = originalMinY;
+			targetMaxX = originalMaxX;
+			targetMinX = originalMinX;
+			targetMaxY = originalMaxY;
+			targetMinY = originalMinY;
 		} else {
 			if (anyMatches > 0) {
-				midX = mapX((maxX + minX) / 2);
-				midY = mapY((maxY + minY) / 2);
-				maxX = newMaxX;
-				minX = newMinX;
-				maxY = newMaxY;
-				minY = newMinY;
-				targetScale = targetScaleTabel[typeCount];
-				targetX = mapX((maxX + minX) / 2);
-				targetY = mapY((maxY + minY) / 2);
+				targetMaxX = newMaxX;
+				targetMinX = newMinX;
+				targetMaxY = newMaxY;
+				targetMinY = newMinY;
 			}
 		}
 	} else {
-		targetScale = targetScaleTabel[0];
-
-		maxX = originalMaxX;
-		minX = originalMinX;
-		maxY = originalMaxY;
-		minY = originalMinY;
+		targetMaxX = originalMaxX;
+		targetMinX = originalMinX;
+		targetMaxY = originalMaxY;
+		targetMinY = originalMinY;
 	}
 }
 
@@ -485,11 +488,11 @@ function handleClick() {
 	if (zoomActive === 0) {
 		zoomActive = 1;
 		textZoom.style("color", highlightedColorText);
-		updateCorrdinates(0.1);
+		updateCorrdinates();
 	} else if (zoomActive === 1) {
 		zoomActive = 0;
 		textZoom.style("color", unhighlightedColor);
-		updateCorrdinates(0.0);
+		updateCorrdinates();
 		clearLayer = true;
 	}
 }
@@ -505,13 +508,13 @@ function toggleSwitch() {
 
 	clear();
 	layer1.clear();
+	layer2.clear();
 	if (!switchActive) {
 		switchButton.removeClass("checked");
 	} else {
 		switchButton.addClass("checked");
 	}
 
-	setScale();
 	preprocessing();
 	if (typeCount > 0) {
 		findPost(textType.html());
@@ -557,14 +560,34 @@ function findPost(searchValue) {
 		textType.style("color", badSearchColor);
 	} else {
 		textType.style("color", highlightedColorText);
-		let midX = (newMaxX + newMinX) / 2;
-		let midY = (newMaxY + newMinY) / 2;
-		let viewX = 0.01;
-		let viewY = 0.008;
-		newMinX = midX - viewX;
-		newMaxX = midX + viewX;
-		newMinY = midY - viewY;
-		newMaxY = midY + viewY;
+		targetX = (newMaxX + newMinX) / 2;
+		targetY = (newMaxY + newMinY) / 2;
+
+		// Step 2: Calculate the ranges for x and y in the selected subset
+		let viewX = abs(newMaxX - newMinX) / 2;
+		let viewY = abs(newMaxY - newMinY) / 2;
+
+		if (viewX === 0 && viewY === 0) {
+			viewX = abs(maxX - minX) / 2;
+			viewY = abs(maxY - minY) / 2;
+		}
+
+		// Step 3: Determine the canvas aspect ratio
+		let canvasAspectRatio = width / height;
+		let subsetAspectRatio = viewX / viewY;
+
+		// Step 4: Adjust viewX or viewY to match the canvas aspect ratio
+		if (subsetAspectRatio > canvasAspectRatio) {
+			// Subset is wider than canvas, adjust viewY
+			viewY = viewX / canvasAspectRatio;
+		} else {
+			// Subset is taller than canvas, adjust viewX
+			viewX = viewY * canvasAspectRatio;
+		}
+		newMinX = targetX - viewX;
+		newMaxX = targetX + viewX;
+		newMinY = targetY - viewY;
+		newMaxY = targetY + viewY;
 	}
 }
 
@@ -587,14 +610,6 @@ function resetColor() {
 	colorPosts(false);
 }
 
-function setScale() {
-	if (switchActive) {
-		targetScaleTabel = [1, 1.9, 2.5, 3.0, 3.0];
-	} else {
-		targetScaleTabel = [1, 1.2, 1.5, 1.9, 1.9];
-	}
-}
-
 let scaleFactor = 1;
 let targetScale = 1;
 let midX, midY;
@@ -602,24 +617,28 @@ let targetX, targetY;
 let reset = true;
 function draw() {
 	background(backgroundColor);
+	popup.hide();
 
 	if (!dataReady || !canDraw) {
 		return;
 	}
 
-	if (zoomActive === 1) {
-		clear();
-		layer1.clear();
+	clear();
+	layer1.clear();
 
-		midX = lerp(midX, targetX, 0.000000001);
-		midY = lerp(midY, targetY, 0.000000001);
-		scaleFactor = lerp(scaleFactor, targetScale, 0.05);
+	midX = lerp(midX, targetX, 0.1);
+	midY = lerp(midY, targetY, 0.1);
+	minX = lerp(minX, targetMinX, 0.1);
+	maxX = lerp(maxX, targetMaxX, 0.1);
+	maxY = lerp(maxY, targetMaxY, 0.1);
+	minY = lerp(minY, targetMinY, 0.1);
+	scaleFactor = lerp(scaleFactor, targetScale, 0.05);
 
-		translate(midX, midY);
-		scale(scaleFactor);
+	translate(midX, midY);
+	// scale(scaleFactor);
+	translate(-midX, -midY);
 
-		translate(-midX, -midY);
-	}
+	colorPosts(anyMatches < 10 && typeCount === 3 && zoomActive);
 
 	if (reset && typeCount === 0) {
 		resetColor();
