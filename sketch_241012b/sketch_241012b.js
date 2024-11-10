@@ -2,7 +2,7 @@
 let canvas;
 
 // spremenljivke, ki bodo hranile besedilo na strani
-let textType, textZoom, textSpecila;
+let textType, textZoom, textSpecila, textNavodila;
 let typeCount = 0; // koliko znakov je uporabnik napisla
 let zoomActive = 0;
 let specialPosts = 0;
@@ -286,19 +286,23 @@ function createText() {
 	textType = createP("Type the digits of a zip code");
 	textSpecila = createP("Show special posts");
 	switchButton = select("#mySwitch");
+	textNavodila = select("#navodila");
 	switchButton.mousePressed(toggleSwitch);
 
 	textZoom.style("font-family", "monospace");
 	textType.style("font-family", "monospace");
 	textSpecila.style("font-family", "monospace");
+	textNavodila.style("font-family", "monospace");
 
 	textZoom.style("font-size", "20px");
 	textType.style("font-size", "20px");
 	textSpecila.style("font-size", "14px");
+	textNavodila.style("font-size", "12px");
 
 	textZoom.style("color", unhighlightedColor);
 	textType.style("color", unhighlightedColor);
 	textSpecila.style("color", unhighlightedColor);
+	textNavodila.style("color", unhighlightedColor);
 
 	positionText();
 }
@@ -308,6 +312,8 @@ function positionText() {
 
 	textSpecila.position(canvas.x + width - 150, canvas.y + height - 17);
 	textZoom.position(canvas.x + width - 25, canvas.y + height - 50);
+
+	textNavodila.position(canvas.x - 30, canvas.y + height + 50);
 
 	textZoom.mousePressed(handleClick);
 	textZoom.style("cursor", "pointer");
@@ -373,7 +379,7 @@ function drawChoosen(x, y, newColor, index) {
 	if (specialOffice === "") {
 		popup.html(place + ", " + postalCode);
 	} else {
-		popup.html(specialOffice + "," + place + ", " + postalCode);
+		popup.html(specialOffice + ", " + place + ", " + postalCode);
 	}
 	popup.show();
 	let relativeX = xx + canvas.x - popup.html().length * 5;
@@ -411,7 +417,7 @@ function drawPost(x, y, newColor, index, less) {
 		layer1.noStroke();
 		layer1.fill(blendColor);
 		// Draw the index as text when less is true
-		layer1.textSize(10); // Set an appropriate text size
+		layer1.textSize(12); // Set an appropriate text size
 		layer1.text(lastDigit, xx, yy);
 
 		drawnPosts.push({ xx, yy });
@@ -592,8 +598,13 @@ function findPost(searchValue) {
 		let viewY = abs(newMaxY - newMinY) / 2;
 
 		if (viewX === 0 && viewY === 0) {
-			viewX = abs(maxX - minX) / 2;
-			viewY = abs(maxY - minY) / 2;
+			if (typeCount === 4) {
+				viewX = abs(maxX - minX) / 2;
+				viewY = abs(maxY - minY) / 2;
+			} else {
+				viewX = 0.001;
+				viewY = 0.0007;
+			}
 		}
 
 		// Step 3: Determine the canvas aspect ratio
@@ -650,17 +661,12 @@ function draw() {
 	clear();
 	layer1.clear();
 
-	midX = lerp(midX, targetX, 0.1);
-	midY = lerp(midY, targetY, 0.1);
-	minX = lerp(minX, targetMinX, 0.1);
-	maxX = lerp(maxX, targetMaxX, 0.1);
-	maxY = lerp(maxY, targetMaxY, 0.1);
-	minY = lerp(minY, targetMinY, 0.1);
-	scaleFactor = lerp(scaleFactor, targetScale, 0.05);
-
-	translate(midX, midY);
-	// scale(scaleFactor);
-	translate(-midX, -midY);
+	midX = lerp(midX, targetX, 0.08);
+	midY = lerp(midY, targetY, 0.08);
+	minX = lerp(minX, targetMinX, 0.08);
+	maxX = lerp(maxX, targetMaxX, 0.08);
+	maxY = lerp(maxY, targetMaxY, 0.08);
+	minY = lerp(minY, targetMinY, 0.08);
 
 	colorPosts(anyMatches < 10 && typeCount === 3 && zoomActive);
 
