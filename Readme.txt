@@ -1,4 +1,0 @@
-Kakšna je povezava med geografsko lokacijo krajev in njihovo pošto številko v Sloveniji?
-V okviru naloge sem ustvarila interaktivno vizualizacijo, ki omogoča vpogled v geografsko razporeditev poštnih uradov v Sloveniji ter ponazarja povezavo med poštnimi številkami in lokacijo krajev.
-Z uporabo interaktivnih elementov, kot so osvetlitev in zatemnitev pikic na zemljevidu glede na vnesene številke ter možnost povečave za boljši pregled izbranih pošt, vizualizacija ponuja intuitiven in dinamičen način raziskovanja vzorcev poštnih številk.
-Dodatna funkcionalnost izbire med običajnimi in posebnimi poštnimi številkami, ki jih uporabljajo večja podjetja in ustanove, pa še dodatno poudarja raznolikost in kompleksnost poštnega sistema v Sloveniji.
