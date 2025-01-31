@@ -312,9 +312,9 @@ function preprocessing() {
 // nastavljanja stilov besedil in gumbov na strani
 function createText() {
 	// pridobimo elemente
-	textZoom = createP("zoom");
-	textType = createP("Type the digits of a zip code");
-	textSpecila = createP("Show special posts");
+	textZoom = createP("Povečava");
+	textType = createP("Vnesite poštno številko");
+	textSpecila = createP("Prikaži posebne pošte");
 	switchButton = select("#mySwitch");
 	textNavodila = select("#navodila");
 
@@ -328,9 +328,9 @@ function createText() {
 	textNavodila.style("font-family", "monospace");
 
 	// nastavimo velikost pisave
-	textZoom.style("font-size", "20px");
+	textZoom.style("font-size", "16px");
 	textType.style("font-size", "20px");
-	textSpecila.style("font-size", "14px");
+	textSpecila.style("font-size", "16px");
 	textNavodila.style("font-size", "12px");
 
 	// nastavimo barvo besedila
@@ -347,15 +347,15 @@ function createText() {
 function positionText() {
 	textType.position(canvas.x - 10, canvas.y);
 
-	textSpecila.position(canvas.x + width - 150, canvas.y + height - 17);
-	textZoom.position(canvas.x + width - 25, canvas.y + height - 50);
+	textSpecila.position(canvas.x + width - 155, canvas.y + height - 30);
+	textZoom.position(canvas.x + width - 15, canvas.y + height - 50);
 
-	textNavodila.position(canvas.x - 10, canvas.y + height - 10);
+	textNavodila.position(canvas.x - 10, canvas.y + height - 30);
 
 	textZoom.mousePressed(handleClick); // dodamo handler, ob pritisku na zoom
 	textZoom.style("cursor", "pointer"); // nastavimo izgled kurzorja
 
-	switchButton.position(canvas.x + width - 5, canvas.y + height);
+	switchButton.position(canvas.x + width + 35, canvas.y + height - 10);
 	switchButton.addClass("switch"); // Dodamo razred s stili stikalu
 
 	// kaj se zgodi ob spremembi
@@ -451,7 +451,10 @@ function drawPost(x, y, newColor, index, less) {
 	let blendColor = lerpColor(color(currColor), color(newColor), 0.1);
 	layer1.stroke(blendColor);
 	// Izpis imena poste če gremo čez njo z miško
-	if (dist(mouseX, mouseY, xx, yy) < 5 && match == -1) {
+	if (
+		(dist(mouseX, mouseY, xx, yy) < 5 && match == -1) ||
+		(less && dist(mouseX, mouseY, xx, yy) < 5 && match == -1)
+	) {
 		let postalCode = table.getString(index, "postalCode");
 		let place = table.getString(index, "place");
 		let specialOffice = table.getString(index, "specialOffice");
@@ -579,7 +582,7 @@ function keyPressed() {
 			let newText = currentText.substring(0, currentText.length - 1);
 			textType.html(newText);
 			if (typeCount === 0) {
-				textType.html("Type the digits of a zip code");
+				textType.html("Vnesite poštno številko");
 				textType.style("color", unhighlightedColor);
 				reset = true;
 				updateCorrdinates();
