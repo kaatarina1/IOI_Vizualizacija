@@ -595,8 +595,8 @@ function keyPressed() {
 				updateCorrdinates();
 			}
 		}
-		// če je vpisana čka "z" vklopimo zoom
-	} else if (key === "z" || key === "Z") {
+		// če je vpisana čka "p" vklopimo zoom
+	} else if (key === "p" || key === "P") {
 		if (zoomActive === 0) {
 			zoomActive = 1;
 			textZoom.style("color", highlightedColorText);
